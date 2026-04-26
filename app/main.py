@@ -1,18 +1,23 @@
 """
 CineSphere API: Fase 1 (health, CORS, logging), Fase 2 (TMDB búsqueda), Fase 3 (persistencia).
 """
+import os
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
+from dotenv import load_dotenv
 import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.config import TMDB_API_KEY, TMDB_BASE_URL, TMDB_IMAGE_BASE
+from app.core.config import TMDB_API_KEY
 from app.db.database import init_db
 from app.routers import recursos
 from app.services.tmdb import search_movie_first
+
+# Cargar variables de entorno
+load_dotenv()
 
 
 @asynccontextmanager
@@ -29,10 +34,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# --- CORS ---
+# --- CORS SEGURO ---
+ORIGEN = os.getenv("ORIGEN_PERMITIDO", "http://127.0.0.1:5500")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[ORIGEN],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -67,21 +74,22 @@ async def root():
 
 @app.get("/config")
 async def config():
-    """Debug: comprobar carga de TMDB (sin exponer la API key)."""
+    """Verifica variables de entorno (sin exponer datos sensibles)."""
     return {
+        "status": "Running in Staging",
+        "port": os.getenv("PORT"),
         "tmdb_key_loaded": bool(TMDB_API_KEY),
-        "tmdb_base_url": TMDB_BASE_URL,
-        "image_base_url": TMDB_IMAGE_BASE,
+        "origen_permitido": ORIGEN,
     }
 
 
 @app.get("/pelicula/{criterio}")
 async def pelicula(criterio: str, request: Request):
-    """Búsqueda en TMDB por criterio; devuelve el primer resultado (Fase 2)."""
+    """Búsqueda en TMDB."""
     if not TMDB_API_KEY:
         raise HTTPException(
             status_code=500,
-            detail="TMDB_API_KEY no configurada. Configure la variable en .env en la raíz del proyecto.",
+            detail="TMDB_API_KEY no configurada en .env",
         )
     client = request.app.state.http_client
     result = await search_movie_first(client, criterio)
