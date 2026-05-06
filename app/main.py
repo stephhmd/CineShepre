@@ -1,6 +1,9 @@
 """
-CineSphere API: Fase 1 (health, CORS, logging), Fase 2 (TMDB búsqueda), Fase 3 (persistencia).
+CineSphere API: Fase 1 (health, CORS, logging),
+Fase 2 (TMDB búsqueda),
+Fase 3 (persistencia + seguridad).
 """
+
 import os
 import time
 from contextlib import asynccontextmanager
@@ -8,7 +11,7 @@ from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 import httpx
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import TMDB_API_KEY
@@ -20,6 +23,7 @@ from app.services.tmdb import search_movie_first
 load_dotenv()
 
 
+# --- LIFESPAN ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Cliente HTTP para TMDB y creación de tablas en arranque."""
@@ -29,10 +33,12 @@ async def lifespan(app: FastAPI):
         yield
 
 
+# --- APP PRINCIPAL ---
 app = FastAPI(
     title="CineSphere API - Fase 3",
     lifespan=lifespan,
 )
+
 
 # --- CORS SEGURO ---
 ORIGEN = os.getenv("ORIGEN_PERMITIDO", "http://127.0.0.1:5500")
@@ -44,7 +50,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Logging middleware ---
+
+# --- LOGGING ---
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start_time = time.time()
@@ -58,13 +65,22 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-# --- Rutas ---
+# --- ENDPOINT PROTEGIDO (Fase 2 Seguridad) ---
+@app.post("/favoritos")
+async def guardar_favorito(x_api_key: str = Header(None)):
+    if x_api_key != os.getenv("API_SECRET_KEY"):
+        raise HTTPException(status_code=401, detail="Firma no válida")
+
+    return {"mensaje": "Guardado correctamente"}
+
+
+# --- RUTAS ---
 app.include_router(recursos.router)
 
 
+# --- HEALTH CHECK ---
 @app.get("/")
 async def root():
-    """Health check (Fase 1)."""
     return {
         "status": "online",
         "message": "Servidor Arriba",
@@ -72,9 +88,9 @@ async def root():
     }
 
 
+# --- CONFIG ---
 @app.get("/config")
 async def config():
-    """Verifica variables de entorno (sin exponer datos sensibles)."""
     return {
         "status": "Running in Staging",
         "port": os.getenv("PORT"),
@@ -83,19 +99,22 @@ async def config():
     }
 
 
+# --- TMDB ---
 @app.get("/pelicula/{criterio}")
 async def pelicula(criterio: str, request: Request):
-    """Búsqueda en TMDB."""
     if not TMDB_API_KEY:
         raise HTTPException(
             status_code=500,
             detail="TMDB_API_KEY no configurada en .env",
         )
+
     client = request.app.state.http_client
     result = await search_movie_first(client, criterio)
+
     if result is None:
         raise HTTPException(
             status_code=404,
             detail=f"No se encontró ninguna película para: {criterio}",
         )
+
     return result
