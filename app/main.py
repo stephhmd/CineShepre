@@ -11,19 +11,16 @@ from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 import httpx
-from fastapi import FastAPI, HTTPException, Request, Header
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import TMDB_API_KEY
 from app.db.database import init_db
-from app.routers import recursos
+from app.routers import recursos, auth
 from app.services.tmdb import search_movie_first
 
 # --- CARGAR VARIABLES ---
 load_dotenv()
-
-API_KEY = os.getenv("API_SECRET_KEY")
-ORIGEN = os.getenv("ORIGEN_PERMITIDO", "http://localhost")
 
 
 # --- LIFESPAN ---
@@ -43,15 +40,17 @@ app = FastAPI(
 )
 
 
-# --- CORS CONFIGURADO ---
+# 🔥 CORS CORRECTO PARA DESARROLLO
+origins = [
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
+    "http://127.0.0.1:3000",
+    "http://localhost:3000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost",
-        "http://localhost:80",
-        "http://127.0.0.1",
-        "http://127.0.0.1:80",
-    ],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -74,17 +73,9 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-# --- ENDPOINT PROTEGIDO ---
-@app.post("/favoritos")
-async def guardar_favorito(x_api_key: str = Header(...)):
-    if x_api_key != API_KEY:
-        raise HTTPException(status_code=401, detail="Firma no válida")
-
-    return {"mensaje": "Guardado correctamente"}
-
-
 # --- RUTAS ---
 app.include_router(recursos.router)
+app.include_router(auth.router)
 
 
 # --- HEALTH CHECK ---
@@ -104,7 +95,6 @@ async def config():
         "status": "Running",
         "port": os.getenv("PORT"),
         "tmdb_key_loaded": bool(TMDB_API_KEY),
-        "origen_permitido": ORIGEN,
     }
 
 
@@ -127,6 +117,3 @@ async def pelicula(criterio: str, request: Request):
         )
 
     return result
-
-    from app.routers import auth
-    app.include_router(auth.router)

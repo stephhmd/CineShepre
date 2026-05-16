@@ -1,13 +1,19 @@
 /**
  * CineSphere - Frontend Phase 4
- * Consume la API FastAPI local (películas, favoritos).
- * Vanilla JS, sin frameworks.
  */
 
-const API_URL = 'http://localhost:8000';
-const USER_ID = 'alejandro';
+const API_URL =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1"
+    ? "http://localhost:8000"
+    : "https://TU-BACKEND.onrender.com";
 
-// Referencias a elementos del DOM
+// 🔥 Usuario dinámico
+function getUserId() {
+  return localStorage.getItem("user") || "anon";
+}
+
+// Referencias DOM
 const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
 const feedback = document.getElementById('feedback');
@@ -19,10 +25,9 @@ const favoritesList = document.getElementById('favoritesList');
 const favoritesEmpty = document.getElementById('favoritesEmpty');
 const refreshFavoritesBtn = document.getElementById('refreshFavoritesBtn');
 
-// Película actual mostrada
 let currentSearchResult = null;
 
-// --- Utilidades ---
+// --- UI helpers ---
 
 function showFeedback(message, type = 'info') {
   feedback.classList.remove('hidden');
@@ -43,36 +48,34 @@ function hideFeedback() {
   feedback.classList.add('hidden');
 }
 
-function setLoading(buttonElement, loading) {
-  if (!buttonElement) return;
-  buttonElement.disabled = loading;
-  buttonElement.textContent = loading
+function setLoading(button, loading) {
+  if (!button) return;
+  button.disabled = loading;
+  button.textContent = loading
     ? 'Cargando...'
-    : (buttonElement === searchBtn ? 'Buscar' : 'Guardar en favoritos');
+    : (button === searchBtn ? 'Buscar' : 'Guardar favorito');
 }
 
-// --- Búsqueda ---
+// --- SEARCH ---
 
 async function searchMovie() {
-  const criterio = (searchInput.value || '').trim();
+  const criterio = searchInput.value.trim();
 
   if (!criterio) {
-    showFeedback('Escribe el nombre de una película para buscar.', 'error');
+    showFeedback('Escribe una película.', 'error');
     return;
   }
 
   hideFeedback();
   setLoading(searchBtn, true);
-
   resultSection.classList.add('hidden');
-  currentSearchResult = null;
 
   try {
     const res = await fetch(`${API_URL}/pelicula/${encodeURIComponent(criterio)}`);
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      showFeedback(data.detail || `Error ${res.status}`, 'error');
+      showFeedback(data.detail || 'Error buscando película', 'error');
       return;
     }
 
@@ -81,8 +84,8 @@ async function searchMovie() {
     resultSection.classList.remove('hidden');
     notesInput.value = '';
 
-  } catch (err) {
-    showFeedback('No se pudo conectar con el servidor. ¿Está corriendo la API en el puerto 8000?', 'error');
+  } catch {
+    showFeedback('No conecta con el backend 😵', 'error');
   } finally {
     setLoading(searchBtn, false);
   }
@@ -91,36 +94,36 @@ async function searchMovie() {
 function renderResultCard(movie) {
   const img = movie.image
     ? `<img src="${movie.image}" class="w-full h-64 object-cover" />`
-    : `<div class="w-full h-64 bg-gray-700 flex items-center justify-center text-gray-500">Sin imagen</div>`;
-
-  const rating = movie.rating != null ? movie.rating.toFixed(1) : '-';
-  const date = movie.release_date || '-';
+    : `<div class="w-full h-64 bg-gray-700 flex items-center justify-center">Sin imagen</div>`;
 
   resultCard.innerHTML = `
     ${img}
     <div class="p-4">
-      <h3 class="font-semibold text-lg">${escapeHtml(movie.title)}</h3>
-      <div class="flex gap-3 mt-2 text-sm text-gray-400">
-        <span>⭐ ${rating}</span>
-        <span>📅 ${date}</span>
-        <span>${escapeHtml(movie.media_type || 'movie')}</span>
-      </div>
+      <h3 class="text-lg font-semibold">${escapeHtml(movie.title)}</h3>
+      <p class="text-sm text-gray-400 mt-2">
+        ⭐ ${movie.rating ?? '-'} · 📅 ${movie.release_date ?? '-'}
+      </p>
     </div>
   `;
 }
 
 function escapeHtml(text) {
-  if (!text) return '';
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
 }
 
-// --- Guardar favorito ---
+// --- SAVE FAVORITE ---
 
 async function saveFavorite() {
+
+  if (!getUserId() || getUserId() === "anon") {
+    showFeedback("Inicia sesión primero.", "error");
+    return;
+  }
+
   if (!currentSearchResult) {
-    showFeedback('Primero busca una película.', 'error');
+    showFeedback('Busca una película primero.', 'error');
     return;
   }
 
@@ -131,18 +134,17 @@ async function saveFavorite() {
     rating: currentSearchResult.rating ?? null,
     release_date: currentSearchResult.release_date || null,
     image: currentSearchResult.image || null,
-    notas_personales: (notesInput.value || '').trim() || null
+    notas_personales: notesInput.value.trim() || null
   };
 
   setLoading(saveFavoriteBtn, true);
-  hideFeedback();
 
   try {
     const res = await fetch(`${API_URL}/recursos`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-User-Id': USER_ID
+        'X-User-Id': getUserId()
       },
       body: JSON.stringify(payload)
     });
@@ -150,126 +152,124 @@ async function saveFavorite() {
     const data = await res.json().catch(() => ({}));
 
     if (res.status === 201) {
-      showFeedback('Película guardada en favoritos.', 'success');
+      showFeedback('Guardado en favoritos 🎉', 'success');
       loadFavorites();
     } else if (res.status === 409) {
-      showFeedback(data.detail || 'Ya existe en favoritos.', 'error');
+      showFeedback('Ya existe en favoritos.', 'error');
     } else {
-      showFeedback(data.detail || `Error ${res.status}`, 'error');
+      showFeedback(data.detail || 'Error guardando', 'error');
     }
 
-  } catch (err) {
-    showFeedback('Error de conexión al guardar.', 'error');
+  } catch {
+    showFeedback('Error de conexión', 'error');
   } finally {
     setLoading(saveFavoriteBtn, false);
   }
 }
 
-// --- Favoritos ---
+// --- FAVORITES ---
 
 async function loadFavorites() {
-  favoritesEmpty.textContent = 'Cargando favoritos...';
+  favoritesEmpty.textContent = 'Cargando...';
   favoritesEmpty.classList.remove('hidden');
-  favoritesList.querySelectorAll('.favorite-card').forEach(el => el.remove());
+  favoritesList.innerHTML = '';
 
   try {
     const res = await fetch(`${API_URL}/recursos`, {
-      headers: { 'X-User-Id': USER_ID }
+      headers: { 'X-User-Id': getUserId() }
     });
 
     const data = await res.json().catch(() => []);
 
     if (!res.ok) {
-      favoritesEmpty.textContent = 'Error al cargar favoritos.';
+      favoritesEmpty.textContent = 'Error al cargar';
       return;
     }
 
-    const items = Array.isArray(data) ? data : [];
-
-    if (items.length === 0) {
-      favoritesEmpty.textContent = 'Aún no tienes favoritos.';
+    if (!data.length) {
+      favoritesEmpty.textContent = 'Sin favoritos aún';
       return;
     }
 
     favoritesEmpty.classList.add('hidden');
 
-    items.forEach(item => {
-      const card = document.createElement('div');
-      card.className = 'favorite-card bg-gray-800 rounded-xl p-4 flex gap-4';
+    data.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'bg-gray-800 p-4 rounded-xl mb-3';
 
-      card.innerHTML = `
-        <div class="flex-1">
-          <h3 class="font-semibold">${escapeHtml(item.title)}</h3>
-          <p class="text-sm text-gray-400">⭐ ${item.rating ?? '-'} · ${item.release_date ?? '-'}</p>
-        </div>
+      div.innerHTML = `
+        <h3 class="font-semibold">${escapeHtml(item.title)}</h3>
+        <p class="text-sm text-gray-400">
+          ⭐ ${item.rating ?? '-'} · ${item.release_date ?? '-'}
+        </p>
       `;
 
-      favoritesList.appendChild(card);
+      favoritesList.appendChild(div);
     });
 
-  } catch (err) {
-    favoritesEmpty.textContent = 'No se pudo conectar con el servidor.';
+  } catch {
+    favoritesEmpty.textContent = 'No conecta con backend';
   }
 }
 
-// --- Eventos ---
+// --- EVENTS ---
 
 searchBtn.addEventListener('click', searchMovie);
-searchInput.addEventListener('keydown', (e) => {
+
+searchInput.addEventListener('keydown', e => {
   if (e.key === 'Enter') searchMovie();
 });
 
 saveFavoriteBtn.addEventListener('click', saveFavorite);
 refreshFavoritesBtn.addEventListener('click', loadFavorites);
 
-// Init
-loadFavorites();
+// --- AUTH UI ---
 
-
-
-function showLogin() {
-  document.getElementById("authViewContainer").classList.remove("hidden");
-  document.getElementById("authTitle").innerText = "Iniciar sesión";
-  document.getElementById("authSubmit").innerText = "Entrar";
+function showLogin(){
+  document.getElementById("authModal").classList.remove("hidden");
 }
 
-function showRegister() {
-  document.getElementById("authViewContainer").classList.remove("hidden");
-  document.getElementById("authTitle").innerText = "Registrarse";
-  document.getElementById("authSubmit").innerText = "Crear cuenta";
+function showRegister(){
+  document.getElementById("authModal").classList.remove("hidden");
 }
 
-function login() {
-  const user = document.getElementById("authUser").value;
-  const pass = document.getElementById("authPass").value;
+function closeAuth(){
+  document.getElementById("authModal").classList.add("hidden");
+}
 
-  if (!user || !pass) return;
+function submitAuth(){
+  const user = document.getElementById("username").value;
+
+  if(!user){
+    alert("Escribe un usuario");
+    return;
+  }
 
   localStorage.setItem("user", user);
 
-  setLoggedIn();
-}
-
-function logout() {
-  localStorage.removeItem("user");
-  setLoggedOut();
-}
-
-function setLoggedIn() {
   document.getElementById("authButtons").classList.add("hidden");
-  document.getElementById("logoutBtn").classList.remove("hidden");
-  document.getElementById("authViewContainer").classList.add("hidden");
+  document.getElementById("userPanel").classList.remove("hidden");
+  document.getElementById("userText").innerText = "Hola, " + user;
+
+  closeAuth();
 }
 
-function setLoggedOut() {
+function logout(){
+  localStorage.removeItem("user");
+
   document.getElementById("authButtons").classList.remove("hidden");
-  document.getElementById("logoutBtn").classList.add("hidden");
+  document.getElementById("userPanel").classList.add("hidden");
 }
 
+// INIT
 window.onload = () => {
-  if (localStorage.getItem("user")) {
-    setLoggedIn();
-  } else {
-    setLoggedOut();
+  const user = localStorage.getItem("user");
+
+  if(user){
+    document.getElementById("authButtons").classList.add("hidden");
+    document.getElementById("userPanel").classList.remove("hidden");
+    document.getElementById("userText").innerText = "Hola, " + user;
   }
+
+  loadFavorites();
 };

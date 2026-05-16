@@ -1,23 +1,40 @@
 """
-Conexión a SQLite y sesión de SQLAlchemy.
-Base se define aquí; los modelos se importan solo en init_db() para evitar import circular.
+Conexión a base de datos usando SQLAlchemy.
+Compatible con SQLite (local) y PostgreSQL (producción).
 """
+
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-from app.core.config import DATABASE_URL
+# --- URL DE BASE DE DATOS ---
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./cinesphere.db")
 
+# --- CONFIGURACIÓN ESPECIAL PARA SQLITE ---
+connect_args = {}
+if DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
+
+# --- ENGINE ---
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False},
+    connect_args=connect_args,
     echo=False,
 )
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# --- SESIÓN ---
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+)
+
+# --- BASE ---
 Base = declarative_base()
 
 
+# --- DEPENDENCIA FASTAPI ---
 def get_db():
-    """Dependencia FastAPI: proporciona una sesión y la cierra al terminar."""
     db = SessionLocal()
     try:
         yield db
@@ -25,34 +42,7 @@ def get_db():
         db.close()
 
 
+# --- INICIALIZAR DB ---
 def init_db():
-    """Crea todas las tablas en la base de datos (persistencia)."""
-    from app.db import models  # noqa: F401
-    Base.metadata.create_all(bind=engine)
-
-
-
-
-
-
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
-
-DATABASE_URL = "sqlite:///./cinesphere.db"
-
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
-
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
-
-Base = declarative_base()
-
-
-def init_db():
+    from app.db import models  # evita import circular
     Base.metadata.create_all(bind=engine)
