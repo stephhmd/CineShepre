@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineSphere Login</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background: rgba(255,255,255,0.08);
+            padding: 30px;
+            border-radius: 15px;
+            width: 350px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: none;
+            border-radius: 8px;
+            outline: none;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 8px;
+            background: #2563eb;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .logout {
+            background: #dc2626;
+        }
+
+        .logout:hover {
+            background: #b91c1c;
+        }
+
+        #mensaje {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>CineSphere</h2>
+
+    <div id="authSection">
+        <input type="text" id="username" placeholder="Usuario">
+        <input type="password" id="password" placeholder="Contraseña">
+
+        <button onclick="register()">Registrarse</button>
+        <button onclick="login()">Iniciar Sesión</button>
+    </div>
+
+    <div id="loggedSection" class="hidden">
+        <h3>Sesión iniciada</h3>
+        <p>Bienvenido a CineSphere 🎬</p>
+        <button class="logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+
+    <p id="mensaje"></p>
+</div>
+
+<script>
+const API_URL = "http://127.0.0.1:8000";
+
+function showMessage(msg, color="white") {
+    const mensaje = document.getElementById("mensaje");
+    mensaje.textContent = msg;
+    mensaje.style.color = color;
+}
+
+async function register() {
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+
+    const response = await fetch(
+        `${API_URL}/register?username=${username}&password=${password}`,
+        {
+            method: "POST"
+        }
+    );
+
+    const data = await response.json();
+
+    if (response.ok) {
+        showMessage(data.message, "lightgreen");
+    } else {
+        showMessage(data.detail, "salmon");
+    }
+}
+
+async function login() {
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+
+    const response = await fetch(
+        `${API_URL}/login?username=${username}&password=${password}`,
+        {
+            method: "POST"
+        }
+    );
+
+    const data = await response.json();
+
+    if (response.ok) {
+        localStorage.setItem("token", data.access_token);
+
+        document.getElementById("authSection").classList.add("hidden");
+        document.getElementById("loggedSection").classList.remove("hidden");
+
+        showMessage("Login exitoso", "lightgreen");
+    } else {
+        showMessage(data.detail, "salmon");
+    }
+}
+
+function logout() {
+    localStorage.removeItem("token");
+
+    document.getElementById("authSection").classList.remove("hidden");
+    document.getElementById("loggedSection").classList.add("hidden");
+
+    showMessage("Sesión cerrada", "orange");
+}
+
+window.onload = () => {
+    const token = localStorage.getItem("token");
+
+    if (token) {
+        document.getElementById("authSection").classList.add("hidden");
+        document.getElementById("loggedSection").classList.remove("hidden");
+    }
+};
+</script>
+
+</body>
+</html>

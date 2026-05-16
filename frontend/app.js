@@ -4,7 +4,7 @@
  * Vanilla JS, sin frameworks.
  */
 
-const API_BASE = 'http://127.0.0.1:8000';
+const API_URL = 'http://localhost:8000';
 const USER_ID = 'alejandro';
 
 // Referencias a elementos del DOM
@@ -19,7 +19,7 @@ const favoritesList = document.getElementById('favoritesList');
 const favoritesEmpty = document.getElementById('favoritesEmpty');
 const refreshFavoritesBtn = document.getElementById('refreshFavoritesBtn');
 
-// Película actual mostrada (resultado de búsqueda) para poder guardarla
+// Película actual mostrada
 let currentSearchResult = null;
 
 // --- Utilidades ---
@@ -27,9 +27,15 @@ let currentSearchResult = null;
 function showFeedback(message, type = 'info') {
   feedback.classList.remove('hidden');
   feedback.className = 'mb-6 p-4 rounded-xl ';
-  if (type === 'error') feedback.className += 'bg-red-900/50 border border-red-600 text-red-200';
-  else if (type === 'success') feedback.className += 'bg-emerald-900/50 border border-emerald-600 text-emerald-200';
-  else feedback.className += 'bg-gray-700 text-gray-200';
+
+  if (type === 'error') {
+    feedback.className += 'bg-red-900/50 border border-red-600 text-red-200';
+  } else if (type === 'success') {
+    feedback.className += 'bg-emerald-900/50 border border-emerald-600 text-emerald-200';
+  } else {
+    feedback.className += 'bg-gray-700 text-gray-200';
+  }
+
   feedback.textContent = message;
 }
 
@@ -40,13 +46,16 @@ function hideFeedback() {
 function setLoading(buttonElement, loading) {
   if (!buttonElement) return;
   buttonElement.disabled = loading;
-  buttonElement.textContent = loading ? 'Cargando...' : (buttonElement === searchBtn ? 'Buscar' : 'Guardar en favoritos');
+  buttonElement.textContent = loading
+    ? 'Cargando...'
+    : (buttonElement === searchBtn ? 'Buscar' : 'Guardar en favoritos');
 }
 
 // --- Búsqueda ---
 
 async function searchMovie() {
   const criterio = (searchInput.value || '').trim();
+
   if (!criterio) {
     showFeedback('Escribe el nombre de una película para buscar.', 'error');
     return;
@@ -54,16 +63,16 @@ async function searchMovie() {
 
   hideFeedback();
   setLoading(searchBtn, true);
+
   resultSection.classList.add('hidden');
   currentSearchResult = null;
 
   try {
-    const res = await fetch(`${API_BASE}/pelicula/${encodeURIComponent(criterio)}`);
+    const res = await fetch(`${API_URL}/pelicula/${encodeURIComponent(criterio)}`);
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      const msg = data.detail || `Error ${res.status}`;
-      showFeedback(msg, 'error');
+      showFeedback(data.detail || `Error ${res.status}`, 'error');
       return;
     }
 
@@ -71,6 +80,7 @@ async function searchMovie() {
     renderResultCard(data);
     resultSection.classList.remove('hidden');
     notesInput.value = '';
+
   } catch (err) {
     showFeedback('No se pudo conectar con el servidor. ¿Está corriendo la API en el puerto 8000?', 'error');
   } finally {
@@ -80,8 +90,9 @@ async function searchMovie() {
 
 function renderResultCard(movie) {
   const img = movie.image
-    ? `<img src="${movie.image}" alt="${escapeHtml(movie.title)}" class="w-full h-64 object-cover" />`
-    : '<div class="w-full h-64 bg-gray-700 flex items-center justify-center text-gray-500">Sin imagen</div>';
+    ? `<img src="${movie.image}" class="w-full h-64 object-cover" />`
+    : `<div class="w-full h-64 bg-gray-700 flex items-center justify-center text-gray-500">Sin imagen</div>`;
+
   const rating = movie.rating != null ? movie.rating.toFixed(1) : '-';
   const date = movie.release_date || '-';
 
@@ -99,7 +110,7 @@ function renderResultCard(movie) {
 }
 
 function escapeHtml(text) {
-  if (text == null) return '';
+  if (!text) return '';
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
@@ -127,7 +138,7 @@ async function saveFavorite() {
   hideFeedback();
 
   try {
-    const res = await fetch(`${API_BASE}/recursos`, {
+    const res = await fetch(`${API_URL}/recursos`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -135,16 +146,18 @@ async function saveFavorite() {
       },
       body: JSON.stringify(payload)
     });
+
     const data = await res.json().catch(() => ({}));
 
     if (res.status === 201) {
       showFeedback('Película guardada en favoritos.', 'success');
       loadFavorites();
     } else if (res.status === 409) {
-      showFeedback(data.detail || 'Esta película ya está en tu lista de favoritos.', 'error');
+      showFeedback(data.detail || 'Ya existe en favoritos.', 'error');
     } else {
       showFeedback(data.detail || `Error ${res.status}`, 'error');
     }
+
   } catch (err) {
     showFeedback('Error de conexión al guardar.', 'error');
   } finally {
@@ -152,7 +165,7 @@ async function saveFavorite() {
   }
 }
 
-// --- Lista de favoritos ---
+// --- Favoritos ---
 
 async function loadFavorites() {
   favoritesEmpty.textContent = 'Cargando favoritos...';
@@ -160,9 +173,10 @@ async function loadFavorites() {
   favoritesList.querySelectorAll('.favorite-card').forEach(el => el.remove());
 
   try {
-    const res = await fetch(`${API_BASE}/recursos`, {
+    const res = await fetch(`${API_URL}/recursos`, {
       headers: { 'X-User-Id': USER_ID }
     });
+
     const data = await res.json().catch(() => []);
 
     if (!res.ok) {
@@ -171,65 +185,91 @@ async function loadFavorites() {
     }
 
     const items = Array.isArray(data) ? data : [];
-    favoritesEmpty.classList.add('hidden');
 
     if (items.length === 0) {
-      favoritesEmpty.textContent = 'Aún no tienes favoritos. Busca una película y guárdala.';
-      favoritesEmpty.classList.remove('hidden');
+      favoritesEmpty.textContent = 'Aún no tienes favoritos.';
       return;
     }
 
+    favoritesEmpty.classList.add('hidden');
+
     items.forEach(item => {
       const card = document.createElement('div');
-      card.className = 'favorite-card bg-gray-800 rounded-xl p-4 flex gap-4 items-start';
-      const img = item.image
-        ? `<img src="${item.image}" alt="${escapeHtml(item.title)}" class="w-20 h-28 object-cover rounded-lg flex-shrink-0" />`
-        : '<div class="w-20 h-28 bg-gray-700 rounded-lg flex-shrink-0 flex items-center justify-center text-gray-500 text-xs">Sin imagen</div>';
-      const rating = item.rating != null ? item.rating.toFixed(1) : '-';
+      card.className = 'favorite-card bg-gray-800 rounded-xl p-4 flex gap-4';
+
       card.innerHTML = `
-        ${img}
-        <div class="flex-1 min-w-0">
+        <div class="flex-1">
           <h3 class="font-semibold">${escapeHtml(item.title)}</h3>
-          <p class="text-sm text-gray-400 mt-1">⭐ ${rating} · ${escapeHtml(item.release_date || '-')}</p>
-          ${item.notas_personales ? `<p class="text-sm text-gray-500 mt-2 italic">${escapeHtml(item.notas_personales)}</p>` : ''}
+          <p class="text-sm text-gray-400">⭐ ${item.rating ?? '-'} · ${item.release_date ?? '-'}</p>
         </div>
-        <button type="button" class="delete-fav px-3 py-1.5 rounded-lg bg-red-900/70 hover:bg-red-700 text-sm flex-shrink-0" data-id="${item.id}">
-          Eliminar
-        </button>
       `;
-      card.querySelector('.delete-fav').addEventListener('click', () => deleteFavorite(item.id));
+
       favoritesList.appendChild(card);
     });
+
   } catch (err) {
     favoritesEmpty.textContent = 'No se pudo conectar con el servidor.';
-    favoritesEmpty.classList.remove('hidden');
-  }
-}
-
-async function deleteFavorite(id) {
-  try {
-    const res = await fetch(`${API_BASE}/recursos/${id}`, {
-      method: 'DELETE',
-      headers: { 'X-User-Id': USER_ID }
-    });
-    if (res.ok) {
-      showFeedback('Favorito eliminado.', 'success');
-      loadFavorites();
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showFeedback(data.detail || 'Error al eliminar.', 'error');
-    }
-  } catch (err) {
-    showFeedback('Error de conexión al eliminar.', 'error');
   }
 }
 
 // --- Eventos ---
 
 searchBtn.addEventListener('click', searchMovie);
-searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') searchMovie(); });
-saveFavoriteBtn.addEventListener('click', saveFavorite);
-refreshFavoritesBtn.addEventListener('click', () => { hideFeedback(); loadFavorites(); });
+searchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') searchMovie();
+});
 
-// Cargar favoritos al abrir la página
+saveFavoriteBtn.addEventListener('click', saveFavorite);
+refreshFavoritesBtn.addEventListener('click', loadFavorites);
+
+// Init
 loadFavorites();
+
+
+
+function showLogin() {
+  document.getElementById("authViewContainer").classList.remove("hidden");
+  document.getElementById("authTitle").innerText = "Iniciar sesión";
+  document.getElementById("authSubmit").innerText = "Entrar";
+}
+
+function showRegister() {
+  document.getElementById("authViewContainer").classList.remove("hidden");
+  document.getElementById("authTitle").innerText = "Registrarse";
+  document.getElementById("authSubmit").innerText = "Crear cuenta";
+}
+
+function login() {
+  const user = document.getElementById("authUser").value;
+  const pass = document.getElementById("authPass").value;
+
+  if (!user || !pass) return;
+
+  localStorage.setItem("user", user);
+
+  setLoggedIn();
+}
+
+function logout() {
+  localStorage.removeItem("user");
+  setLoggedOut();
+}
+
+function setLoggedIn() {
+  document.getElementById("authButtons").classList.add("hidden");
+  document.getElementById("logoutBtn").classList.remove("hidden");
+  document.getElementById("authViewContainer").classList.add("hidden");
+}
+
+function setLoggedOut() {
+  document.getElementById("authButtons").classList.remove("hidden");
+  document.getElementById("logoutBtn").classList.add("hidden");
+}
+
+window.onload = () => {
+  if (localStorage.getItem("user")) {
+    setLoggedIn();
+  } else {
+    setLoggedOut();
+  }
+};

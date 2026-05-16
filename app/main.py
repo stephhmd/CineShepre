@@ -19,8 +19,11 @@ from app.db.database import init_db
 from app.routers import recursos
 from app.services.tmdb import search_movie_first
 
-# Cargar variables de entorno
+# --- CARGAR VARIABLES ---
 load_dotenv()
+
+API_KEY = os.getenv("API_SECRET_KEY")
+ORIGEN = os.getenv("ORIGEN_PERMITIDO", "http://localhost")
 
 
 # --- LIFESPAN ---
@@ -35,17 +38,21 @@ async def lifespan(app: FastAPI):
 
 # --- APP PRINCIPAL ---
 app = FastAPI(
-    title="CineSphere API - Fase 3",
+    title="CineSphere API - Fase 4",
     lifespan=lifespan,
 )
 
 
-# --- CORS SEGURO ---
-ORIGEN = os.getenv("ORIGEN_PERMITIDO", "http://127.0.0.1:5500")
-
+# --- CORS CONFIGURADO ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[ORIGEN],
+    allow_origins=[
+        "http://localhost",
+        "http://localhost:80",
+        "http://127.0.0.1",
+        "http://127.0.0.1:80",
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -57,18 +64,20 @@ async def log_requests(request: Request, call_next):
     start_time = time.time()
     response = await call_next(request)
     process_time = (time.time() - start_time) * 1000
+
     print(
         f"DEBUG: {request.method} {request.url.path} | "
         f"Status: {response.status_code} | "
         f"{process_time:.2f}ms"
     )
+
     return response
 
 
-# --- ENDPOINT PROTEGIDO (Fase 2 Seguridad) ---
+# --- ENDPOINT PROTEGIDO ---
 @app.post("/favoritos")
-async def guardar_favorito(x_api_key: str = Header(None)):
-    if x_api_key != os.getenv("API_SECRET_KEY"):
+async def guardar_favorito(x_api_key: str = Header(...)):
+    if x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Firma no válida")
 
     return {"mensaje": "Guardado correctamente"}
@@ -92,7 +101,7 @@ async def root():
 @app.get("/config")
 async def config():
     return {
-        "status": "Running in Staging",
+        "status": "Running",
         "port": os.getenv("PORT"),
         "tmdb_key_loaded": bool(TMDB_API_KEY),
         "origen_permitido": ORIGEN,
@@ -118,3 +127,6 @@ async def pelicula(criterio: str, request: Request):
         )
 
     return result
+
+    from app.routers import auth
+    app.include_router(auth.router)
