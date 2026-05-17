@@ -3,3 +3,7 @@ uvicorn[standard]
 httpx
 python-dotenv
 sqlalchemy
+
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt
