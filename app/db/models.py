@@ -1,5 +1,5 @@
 """
-Modelo de datos: MisFavoritos (lista de favoritos por usuario).
+Modelos de datos: Usuarios + MisFavoritos
 """
 from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Float, DateTime, UniqueConstraint
@@ -7,6 +7,16 @@ from sqlalchemy import Column, Integer, String, Float, DateTime, UniqueConstrain
 from app.db.database import Base
 
 
+# 🔐 MODELO DE USUARIO (LOGIN)
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(255), unique=True, index=True, nullable=False)
+    password = Column(String(255), nullable=False)
+
+
+# 🎬 MODELO DE FAVORITOS (EL TUYO)
 class MisFavoritos(Base):
     """
     Recurso guardado en la lista de favoritos del usuario.
@@ -21,11 +31,12 @@ class MisFavoritos(Base):
     fecha_creacion = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     notas_personales = Column(String(2000), nullable=True)
     title = Column(String(500), nullable=False)
-    rating = Column(Float, nullable=True)  # tmdb_rating (vote_average)
+    rating = Column(Float, nullable=True)
     release_date = Column(String(20), nullable=True)
     image = Column(String(1000), nullable=True)
-    user_rating = Column(Float, nullable=True)  # valoración opcional del usuario
+    user_rating = Column(Float, nullable=True)
 
     __table_args__ = (
         UniqueConstraint("id_usuario", "external_id", "media_type", name="uq_usuario_external_media"),
     )
+    

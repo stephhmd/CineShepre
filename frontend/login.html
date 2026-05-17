@@ -74,11 +74,13 @@
         }
     </style>
 </head>
+
 <body>
 
 <div class="container">
-    <h2>CineSphere</h2>
+    <h2>CineSphere 🎬</h2>
 
+    <!-- LOGIN FORM -->
     <div id="authSection">
         <input type="text" id="username" placeholder="Usuario">
         <input type="password" id="password" placeholder="Contraseña">
@@ -87,9 +89,10 @@
         <button onclick="login()">Iniciar Sesión</button>
     </div>
 
+    <!-- LOGGED -->
     <div id="loggedSection" class="hidden">
-        <h3>Sesión iniciada</h3>
-        <p>Bienvenido a CineSphere 🎬</p>
+        <h3>Sesión iniciada 🎉</h3>
+        <p>Bienvenido a CineSphere</p>
         <button class="logout" onclick="logout()">Cerrar sesión</button>
     </div>
 
@@ -105,36 +108,40 @@ function showMessage(msg, color="white") {
     mensaje.style.color = color;
 }
 
+// -------------------- REGISTER --------------------
 async function register() {
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
 
-    const response = await fetch(
-        `${API_URL}/register?username=${username}&password=${password}`,
-        {
-            method: "POST"
-        }
-    );
+    const response = await fetch(`${API_URL}/register`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ username, password })
+    });
 
     const data = await response.json();
 
     if (response.ok) {
         showMessage(data.message, "lightgreen");
     } else {
-        showMessage(data.detail, "salmon");
+        showMessage(data.detail || "Error en registro", "salmon");
     }
 }
 
+// -------------------- LOGIN --------------------
 async function login() {
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
 
-    const response = await fetch(
-        `${API_URL}/login?username=${username}&password=${password}`,
-        {
-            method: "POST"
-        }
-    );
+    const response = await fetch(`${API_URL}/login`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ username, password })
+    });
 
     const data = await response.json();
 
@@ -144,12 +151,13 @@ async function login() {
         document.getElementById("authSection").classList.add("hidden");
         document.getElementById("loggedSection").classList.remove("hidden");
 
-        showMessage("Login exitoso", "lightgreen");
+        showMessage("Login exitoso 🚀", "lightgreen");
     } else {
-        showMessage(data.detail, "salmon");
+        showMessage(data.detail || "Error en login", "salmon");
     }
 }
 
+// -------------------- LOGOUT --------------------
 function logout() {
     localStorage.removeItem("token");
 
@@ -159,6 +167,7 @@ function logout() {
     showMessage("Sesión cerrada", "orange");
 }
 
+// -------------------- INIT --------------------
 window.onload = () => {
     const token = localStorage.getItem("token");
 
