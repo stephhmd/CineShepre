@@ -45,13 +45,20 @@
 
 <body class="text-gray-100 min-h-screen">
 
+<!-- 🔐 PROTECCIÓN -->
 <script>
-/* 🔐 PROTECCIÓN: si no hay token, te regresa al login */
 window.onload = () => {
   const token = localStorage.getItem("token");
 
   if (!token) {
-    window.location.href = "login.html";
+    window.location.href = "/login.html";
+  } else {
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      document.getElementById("userText").innerText = "Hola, " + payload.sub;
+    } catch {
+      document.getElementById("userText").innerText = "Sesión activa 🎬";
+    }
   }
 };
 </script>
@@ -62,6 +69,7 @@ window.onload = () => {
 
   <div class="flex gap-3 items-center">
     <span id="userText" class="text-sm text-gray-300"></span>
+
     <button onclick="logout()" class="px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600">
       Cerrar sesión
     </button>
@@ -126,16 +134,11 @@ window.onload = () => {
 <script>
 function logout(){
   localStorage.removeItem("token");
-  window.location.href = "login.html";
-}
-
-/* opcional: mostrar usuario desde token */
-const token = localStorage.getItem("token");
-if (token) {
-  document.getElementById("userText").innerText = "Sesión activa 🎬";
+  window.location.href = "/login.html";
 }
 </script>
 
 <script src="app.js"></script>
+
 </body>
 </html>
