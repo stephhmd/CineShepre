@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta
 import hashlib
 
@@ -9,22 +10,24 @@ from app.db.models import User
 
 router = APIRouter()
 
-SECRET_KEY = "mi_clave_super_secreta"
+# 🔐 SECRET KEY desde .env (Render o local)
+SECRET_KEY = os.getenv("SECRET_KEY", "dev_secret_key")
 ALGORITHM = "HS256"
 
 
 # -----------------------
-# HASH SIMPLE (SIN BCRYPT PROBLEMS)
+# HASH SIMPLE (SIN BCRYPT)
 # -----------------------
 def hash_password(password: str):
     return hashlib.sha256(password.encode()).hexdigest()
+
 
 def verify_password(password: str, hashed: str):
     return hashlib.sha256(password.encode()).hexdigest() == hashed
 
 
 # -----------------------
-# DB
+# DB CONNECTION
 # -----------------------
 def get_db():
     return SessionLocal()
