@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -46,52 +45,28 @@
 
 <body class="text-gray-100 min-h-screen">
 
+<script>
+/* 🔐 PROTECCIÓN: si no hay token, te regresa al login */
+window.onload = () => {
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    window.location.href = "login.html";
+  }
+};
+</script>
+
 <!-- NAV -->
 <nav class="flex justify-between items-center px-6 py-4 glass">
   <h1 class="font-bold text-xl text-cinema-gold">CineSphere 🎬</h1>
 
-  <div id="authButtons" class="flex gap-3">
-    <button onclick="showLogin()" class="px-4 py-2 rounded-lg bg-cinema-accent hover:bg-red-600">
-      Iniciar sesión
-    </button>
-    <button onclick="showRegister()" class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600">
-      Registrarse
-    </button>
-  </div>
-
-  <div id="userPanel" class="hidden gap-3 items-center">
+  <div class="flex gap-3 items-center">
     <span id="userText" class="text-sm text-gray-300"></span>
     <button onclick="logout()" class="px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600">
       Cerrar sesión
     </button>
   </div>
 </nav>
-
-<!-- 🔐 LOGIN OVERLAY (CORREGIDO) -->
-<div id="authModal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-
-  <div class="glass p-6 rounded-xl w-80 shadow-2xl border border-white/10">
-
-    <h2 class="text-lg font-semibold mb-4" id="authTitle">Login</h2>
-
-    <input id="username" placeholder="Usuario"
-      class="w-full mb-3 px-3 py-2 rounded bg-black/40 border border-gray-700">
-
-    <input id="password" type="password" placeholder="Contraseña"
-      class="w-full mb-4 px-3 py-2 rounded bg-black/40 border border-gray-700">
-
-    <button onclick="submitAuth()"
-      class="w-full bg-cinema-accent py-2 rounded hover:bg-red-600">
-      Entrar
-    </button>
-
-    <button onclick="closeAuth()"
-      class="w-full mt-2 text-sm text-gray-400">
-      Cancelar
-    </button>
-
-  </div>
-</div>
 
 <!-- MAIN -->
 <div class="max-w-6xl mx-auto px-4 py-10">
@@ -148,266 +123,19 @@
 
 </div>
 
-
-
-
-<!-- 🎬 AI MOVIE ASSISTANT -->
-<div id="cineBotContainer" class="fixed bottom-6 right-6 z-50">
-
-  <!-- BOTÓN -->
-  <button
-    id="openBot"
-    class="bg-cinema-accent hover:bg-red-600 transition-all px-5 py-3 rounded-full shadow-2xl shadow-red-900/40 font-semibold flex items-center gap-2"
-  >
-    💬 No sabes qué ver?
-  </button>
-
-  <!-- CHAT -->
-  <div
-    id="cineBot"
-    class="hidden mt-4 w-80 glass rounded-2xl overflow-hidden border border-white/10 shadow-2xl"
-  >
-
-    <!-- HEADER -->
-    <div class="bg-cinema-accent px-4 py-3 flex justify-between items-center">
-      <h3 class="font-semibold">CineSphere AI</h3>
-
-      <button onclick="closeBot()" class="text-white/70 hover:text-white">
-        ✕
-      </button>
-    </div>
-
-    <!-- BODY -->
-    <div
-      id="chatMessages"
-      class="h-72 overflow-y-auto p-4 space-y-3 text-sm"
-    >
-      <div class="bg-white/5 p-3 rounded-xl">
-        🎬 Hola, dime qué quieres ver.
-      </div>
-    </div>
-
-    <!-- INPUT -->
-    <div class="p-3 border-t border-white/10 flex gap-2">
-      <input
-        id="botInput"
-        type="text"
-        placeholder="Ej: algo triste..."
-        class="flex-1 px-3 py-2 rounded-lg bg-black/40 border border-gray-700 outline-none"
-      />
-
-      <button
-        onclick="sendMessage()"
-        class="bg-cinema-gold text-black px-4 rounded-lg font-semibold hover:scale-105 transition"
-      >
-        →
-      </button>
-    </div>
-
-  </div>
-</div>
-
 <script>
-const bot = document.getElementById("cineBot");
-const openBotBtn = document.getElementById("openBot");
-const chatMessages = document.getElementById("chatMessages");
-
-openBotBtn.addEventListener("click", () => {
-  bot.classList.toggle("hidden");
-});
-
-function closeBot(){
-  bot.classList.add("hidden");
-}
-
-const recommendations = {
-  triste: [
-    "🎭 La La Land",
-    "💔 Her",
-    "🌧️ Manchester by the Sea"
-  ],
-
-  accion: [
-    "🔥 John Wick",
-    "🦇 The Batman",
-    "🚀 Mad Max: Fury Road"
-  ],
-
-  terror: [
-    "👻 Hereditary",
-    "🩸 Smile",
-    "😨 The Conjuring"
-  ],
-
-  romantica: [
-    "💕 About Time",
-    "🌹 Titanic",
-    "✨ Before Sunrise"
-  ],
-
-  mente: [
-    "🧠 Interstellar",
-    "🔮 Inception",
-    "🌀 Shutter Island"
-  ],
-
-  risa: [
-    "😂 Superbad",
-    "🍿 White Chicks",
-    "🤣 The Hangover"
-  ]
-};
-
-function addMessage(text, user = false){
-  const div = document.createElement("div");
-
-  div.className = user
-    ? "bg-cinema-accent p-3 rounded-xl ml-10"
-    : "bg-white/5 p-3 rounded-xl mr-10";
-
-  div.innerText = text;
-
-  chatMessages.appendChild(div);
-
-  chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-function sendMessage(){
-  const input = document.getElementById("botInput");
-
-  const text = input.value.trim().toLowerCase();
-
-  if(!text) return;
-
-  addMessage(text, true);
-
-  input.value = "";
-
-  setTimeout(() => {
-
-    let response = "🍿 Prueba ver Interstellar.";
-
-    if(text.includes("triste")){
-      response =
-        recommendations.triste[
-          Math.floor(Math.random()*recommendations.triste.length)
-        ];
-    }
-
-    else if(text.includes("accion")){
-      response =
-        recommendations.accion[
-          Math.floor(Math.random()*recommendations.accion.length)
-        ];
-    }
-
-    else if(text.includes("terror")){
-      response =
-        recommendations.terror[
-          Math.floor(Math.random()*recommendations.terror.length)
-        ];
-    }
-
-    else if(
-      text.includes("romance") ||
-      text.includes("amor") ||
-      text.includes("romant")
-    ){
-      response =
-        recommendations.romantica[
-          Math.floor(Math.random()*recommendations.romantica.length)
-        ];
-    }
-
-    else if(
-      text.includes("mind") ||
-      text.includes("mente") ||
-      text.includes("plot")
-    ){
-      response =
-        recommendations.mente[
-          Math.floor(Math.random()*recommendations.mente.length)
-        ];
-    }
-
-    else if(
-      text.includes("risa") ||
-      text.includes("comedia")
-    ){
-      response =
-        recommendations.risa[
-          Math.floor(Math.random()*recommendations.risa.length)
-        ];
-    }
-
-    addMessage(response);
-
-  }, 700);
-}
-
-document
-  .getElementById("botInput")
-  .addEventListener("keydown", (e) => {
-    if(e.key === "Enter"){
-      sendMessage();
-    }
-  });
-</script>
-<script src="app.js"></script>
-
-<script>
-let mode = "login";
-
-function showLogin(){
-  mode = "login";
-  document.getElementById("authTitle").innerText = "Iniciar sesión";
-  document.getElementById("authModal").classList.remove("hidden");
-}
-
-function showRegister(){
-  mode = "register";
-  document.getElementById("authTitle").innerText = "Registrarse";
-  document.getElementById("authModal").classList.remove("hidden");
-}
-
-function closeAuth(){
-  document.getElementById("authModal").classList.add("hidden");
-}
-
-function submitAuth(){
-  const user = document.getElementById("username").value;
-
-  if(!user){
-    alert("Escribe un usuario");
-    return;
-  }
-
-  localStorage.setItem("user", user);
-
-  document.getElementById("authButtons").classList.add("hidden");
-  document.getElementById("userPanel").classList.remove("hidden");
-  document.getElementById("userText").innerText = "Hola, " + user;
-
-  closeAuth();
-}
-
 function logout(){
-  localStorage.removeItem("user");
-
-  document.getElementById("authButtons").classList.remove("hidden");
-  document.getElementById("userPanel").classList.add("hidden");
+  localStorage.removeItem("token");
+  window.location.href = "login.html";
 }
 
-window.onload = () => {
-  const user = localStorage.getItem("user");
-
-  if(user){
-    document.getElementById("authButtons").classList.add("hidden");
-    document.getElementById("userPanel").classList.remove("hidden");
-    document.getElementById("userText").innerText = "Hola, " + user;
-  }
-};
+/* opcional: mostrar usuario desde token */
+const token = localStorage.getItem("token");
+if (token) {
+  document.getElementById("userText").innerText = "Sesión activa 🎬";
+}
 </script>
 
+<script src="app.js"></script>
 </body>
 </html>
